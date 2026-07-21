@@ -12,6 +12,10 @@ void kittyts_options_init(kittyts_options *options)
     options->keyboard.flags = KITTYKB_FLAGS_KEY_STATE;
     options->keyboard.make_raw = false;
     options->keyboard.make_nonblocking = false;
+    options->mouse_tracking = KITTYIN_MOUSE_TRACKING_OFF;
+    options->pixel_mouse = true;
+    options->focus_events = false;
+    options->bracketed_paste = false;
 }
 
 void kittyts_session_init(kittyts_session *session)
@@ -19,7 +23,7 @@ void kittyts_session_init(kittyts_session *session)
     if (session == NULL) return;
     (void)memset(session, 0, sizeof *session);
     kittyfb_session_init(&session->framebuffer);
-    kittykb_terminal_init(&session->keyboard);
+    kittyin_terminal_init(&session->input);
     session->output_fd = -1;
 }
 
@@ -27,6 +31,7 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
                   const kittyts_options *options)
 {
     kittyts_options defaults;
+    kittyin_terminal_options input_options;
     const kittyts_options *selected = options;
     if (session == NULL || input_fd < 0 || output_fd < 0) {
         errno = EINVAL;
@@ -46,8 +51,14 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
                       &selected->framebuffer) != 0)
         return -1;
     session->framebuffer_active = true;
-    if (kittykb_terminal_start(&session->keyboard, input_fd, output_fd,
-                               &selected->keyboard) != 0) {
+    kittyin_terminal_options_init(&input_options);
+    input_options.keyboard = selected->keyboard;
+    input_options.mouse_tracking = selected->mouse_tracking;
+    input_options.pixel_mouse = selected->pixel_mouse;
+    input_options.focus_events = selected->focus_events;
+    input_options.bracketed_paste = selected->bracketed_paste;
+    if (kittyin_terminal_start(&session->input, input_fd, output_fd,
+                               &input_options) != 0) {
         int error = errno;
         kittyfb_stop(&session->framebuffer);
         session->framebuffer_active = false;
@@ -71,7 +82,7 @@ void kittyts_stop(kittyts_session *session)
 {
     if (!claim_shutdown(session)) return;
     if (session->keyboard_active) {
-        (void)kittykb_terminal_stop(&session->keyboard);
+        (void)kittyin_terminal_stop(&session->input);
         session->keyboard_active = false;
     }
     if (session->framebuffer_active) {
@@ -83,10 +94,13 @@ void kittyts_stop(kittyts_session *session)
 
 void kittyts_emergency_restore(kittyts_session *session)
 {
-    static const char keyboard_pop[] = "\x1b\\\x1b[<u";
+    static const char string_terminator[] = "\x1b\\";
     if (!claim_shutdown(session)) return;
-    if (session->keyboard_active && session->output_fd >= 0)
-        (void)write(session->output_fd, keyboard_pop, sizeof keyboard_pop - 1);
+    if (session->keyboard_active && session->output_fd >= 0) {
+        (void)write(session->output_fd, string_terminator,
+                    sizeof string_terminator - 1u);
+        kittyin_terminal_emergency_restore(&session->input);
+    }
     if (session->framebuffer_active)
         kittyfb_emergency_restore(&session->framebuffer);
 }
@@ -134,23 +148,38 @@ int kittyts_read_input(kittyts_session *session)
         errno = EINVAL;
         return -1;
     }
-    return kittykb_terminal_read(&session->keyboard);
+    return kittyin_terminal_read(&session->input);
+}
+
+bool kittyts_next_event(kittyts_session *session, kittyin_event *event)
+{
+    return session != NULL && session->keyboard_active &&
+           kittyin_input_next(&session->input.input, event);
 }
 
 bool kittyts_next_key_event(kittyts_session *session, kittykb_event *event)
 {
-    return session != NULL && session->keyboard_active &&
-           kittykb_input_next(&session->keyboard.input, event);
+    kittyin_event input_event;
+
+    if (session == NULL || event == NULL || !session->keyboard_active)
+        return false;
+    while (kittyin_input_next(&session->input.input, &input_event)) {
+        if (input_event.kind == KITTYIN_EVENT_KEY) {
+            *event = input_event.data.key;
+            return true;
+        }
+    }
+    return false;
 }
 
 bool kittyts_key_down(const kittyts_session *session, uint32_t key)
 {
     return session != NULL && session->keyboard_active &&
-           kittykb_input_key_down(&session->keyboard.input, key);
+           kittyin_input_key_down(&session->input.input, key);
 }
 
 bool kittyts_has_release_events(const kittyts_session *session)
 {
     return session != NULL && session->keyboard_active &&
-           kittykb_input_has_release_events(&session->keyboard.input);
+           kittyin_input_has_release_events(&session->input.input);
 }
