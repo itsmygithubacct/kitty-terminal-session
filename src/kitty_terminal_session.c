@@ -46,6 +46,7 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
         selected = &defaults;
     }
     session->shutdown_claimed = 0;
+    session->cleanup_claimed = 0;
     session->output_fd = output_fd;
     if (kittyfb_start(&session->framebuffer, input_fd, output_fd,
                       &selected->framebuffer) != 0)
@@ -80,7 +81,13 @@ static bool claim_shutdown(kittyts_session *session)
 
 void kittyts_stop(kittyts_session *session)
 {
-    if (!claim_shutdown(session)) return;
+    if (session == NULL ||
+        (!session->framebuffer_active && !session->keyboard_active)) return;
+    /* Claim terminal restoration so a later signal-handler invocation is a
+     * no-op, but do not let an earlier emergency claim suppress resource
+     * cleanup.  cleanup_claimed retains idempotence for ordinary callers. */
+    (void)claim_shutdown(session);
+    if (__sync_lock_test_and_set(&session->cleanup_claimed, 1)) return;
     if (session->keyboard_active) {
         (void)kittyin_terminal_stop(&session->input);
         session->keyboard_active = false;

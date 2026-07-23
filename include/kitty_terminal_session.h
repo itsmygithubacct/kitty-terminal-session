@@ -41,6 +41,7 @@ typedef struct kittyts_session {
     bool framebuffer_active;
     bool keyboard_active;
     volatile int shutdown_claimed;
+    volatile int cleanup_claimed;
 } kittyts_session;
 
 void kittyts_options_init(kittyts_options *options);

@@ -81,6 +81,17 @@ int main(void)
     kittyts_stop(&session);
     kittyts_stop(&session);
     assert(kittyts_width(&session) == 0);
+
+    /* Emergency restoration must not suppress later resource reclamation or
+     * permanently wedge this reusable aggregate object. */
+    assert(kittyts_start(&session, slave, slave, &options) == 0);
+    kittyts_emergency_restore(&session);
+    kittyts_stop(&session);
+    assert(!session.framebuffer_active);
+    assert(!session.keyboard_active);
+    assert(!session.framebuffer.presenter_started);
+    assert(kittyts_start(&session, slave, slave, &options) == 0);
+    kittyts_stop(&session);
     close(slave);
     close(master);
     puts("ok");
