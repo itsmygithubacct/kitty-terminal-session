@@ -26,7 +26,9 @@ The public header is `include/kitty_terminal_session.h`. Call
 `kittyts_options_init()`, customize the nested framebuffer or keyboard
 options, initialize a `kittyts_session`, and start it. Fatal-signal handlers
 may call `kittyts_emergency_restore()`; ordinary cleanup calls
-`kittyts_stop()`.
+`kittyts_stop()`. Before job-control suspension, `kittyts_suspend()` unwinds
+terminal modes while retaining framebuffer high-water storage; a subsequent
+`kittyts_start()` reuses it, and the final stop releases it.
 
 Mouse, focus, and bracketed-paste modes default off so existing games retain
 their exact wire behavior. Opt into them on `kittyts_options`, then consume

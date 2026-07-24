@@ -39,6 +39,7 @@ typedef struct kittyts_session {
 #endif
     int output_fd;
     bool framebuffer_active;
+    bool framebuffer_suspended;
     bool keyboard_active;
     volatile int shutdown_claimed;
     volatile int cleanup_claimed;
@@ -49,6 +50,7 @@ void kittyts_session_init(kittyts_session *session);
 
 int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
                   const kittyts_options *options);
+void kittyts_suspend(kittyts_session *session);
 void kittyts_stop(kittyts_session *session);
 void kittyts_emergency_restore(kittyts_session *session);
 

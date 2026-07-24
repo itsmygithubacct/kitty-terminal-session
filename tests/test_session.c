@@ -78,6 +78,18 @@ int main(void)
     assert(event.key == 'x');
     assert(!kittyts_next_key_event(&session, &event));
 
+    kittyts_suspend(&session);
+    kittyts_suspend(&session);
+    kittyts_suspend(NULL);
+    assert(!session.framebuffer_active);
+    assert(session.framebuffer_suspended);
+    assert(!session.keyboard_active);
+    assert(kittyts_width(&session) == 0);
+    assert(kittyts_start(&session, slave, slave, &options) == 0);
+    assert(session.framebuffer_active);
+    assert(!session.framebuffer_suspended);
+    assert(session.keyboard_active);
+
     kittyts_stop(&session);
     kittyts_stop(&session);
     assert(kittyts_width(&session) == 0);
@@ -88,6 +100,7 @@ int main(void)
     kittyts_emergency_restore(&session);
     kittyts_stop(&session);
     assert(!session.framebuffer_active);
+    assert(!session.framebuffer_suspended);
     assert(!session.keyboard_active);
     assert(!session.framebuffer.presenter_started);
     assert(kittyts_start(&session, slave, slave, &options) == 0);

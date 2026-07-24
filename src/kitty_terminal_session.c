@@ -52,6 +52,7 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
                       &selected->framebuffer) != 0)
         return -1;
     session->framebuffer_active = true;
+    session->framebuffer_suspended = false;
     kittyin_terminal_options_init(&input_options);
     input_options.keyboard = selected->keyboard;
     input_options.mouse_tracking = selected->mouse_tracking;
@@ -63,6 +64,7 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
         int error = errno;
         kittyfb_stop(&session->framebuffer);
         session->framebuffer_active = false;
+        session->framebuffer_suspended = false;
         session->output_fd = -1;
         errno = error;
         return -1;
@@ -82,7 +84,8 @@ static bool claim_shutdown(kittyts_session *session)
 void kittyts_stop(kittyts_session *session)
 {
     if (session == NULL ||
-        (!session->framebuffer_active && !session->keyboard_active)) return;
+        (!session->framebuffer_active && !session->framebuffer_suspended &&
+         !session->keyboard_active)) return;
     /* Claim terminal restoration so a later signal-handler invocation is a
      * no-op, but do not let an earlier emergency claim suppress resource
      * cleanup.  cleanup_claimed retains idempotence for ordinary callers. */
@@ -95,6 +98,28 @@ void kittyts_stop(kittyts_session *session)
     if (session->framebuffer_active) {
         kittyfb_stop(&session->framebuffer);
         session->framebuffer_active = false;
+    } else if (session->framebuffer_suspended) {
+        kittyfb_stop(&session->framebuffer);
+    }
+    session->framebuffer_suspended = false;
+    session->output_fd = -1;
+}
+
+void kittyts_suspend(kittyts_session *session)
+{
+    if (session == NULL ||
+        (!session->framebuffer_active && !session->keyboard_active)) {
+        return;
+    }
+    (void)claim_shutdown(session);
+    if (session->keyboard_active) {
+        (void)kittyin_terminal_stop(&session->input);
+        session->keyboard_active = false;
+    }
+    if (session->framebuffer_active) {
+        kittyfb_suspend(&session->framebuffer);
+        session->framebuffer_active = false;
+        session->framebuffer_suspended = true;
     }
     session->output_fd = -1;
 }
