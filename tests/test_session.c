@@ -105,6 +105,32 @@ int main(void)
     assert(!session.framebuffer.presenter_started);
     assert(kittyts_start(&session, slave, slave, &options) == 0);
     kittyts_stop(&session);
+
+    /* Damage presents reach the framebuffer's patch path.  A small
+     * framebuffer, so the pty cannot fill while the presenter works. */
+    options.framebuffer.min_width = options.framebuffer.max_width = 64;
+    options.framebuffer.min_height = options.framebuffer.max_height = 64;
+    assert(kittyts_start(&session, slave, slave, &options) == 0);
+    {
+        static uint8_t frame[128 * 128 * 4];
+        const kittyfb_rect rect = {0, 0, 8, 8};
+        const int frame_w = kittyts_width(&session);
+        const int frame_h = kittyts_height(&session);
+        kittyfb_stats stats;
+
+        assert(frame_w > 0 && frame_w <= 128);
+        assert(frame_h > 0 && frame_h <= 128);
+        assert(!kittyts_present_damage(NULL, frame, frame_w, frame_h, &rect,
+                                       1u));
+        assert(kittyts_present_damage(&session, frame, frame_w, frame_h,
+                                      &rect, 1u));
+        /* Nothing was on screen yet, so that one had to fall back. */
+        kittyfb_get_stats(&session.framebuffer, &stats);
+        assert(stats.damage_presents + stats.damage_fallbacks == 1u);
+        kittyts_stop(&session);
+        assert(!kittyts_present_damage(&session, frame, frame_w, frame_h,
+                                       &rect, 1u));
+    }
     close(slave);
     close(master);
     puts("ok");

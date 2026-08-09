@@ -174,6 +174,15 @@ bool kittyts_present(kittyts_session *session, const uint8_t *rgba,
            kittyfb_present(&session->framebuffer, rgba, width, height);
 }
 
+bool kittyts_present_damage(kittyts_session *session, const uint8_t *rgba,
+                            int width, int height,
+                            const kittyfb_rect *rects, size_t rect_count)
+{
+    return session != NULL && session->framebuffer_active &&
+           kittyfb_present_damage(&session->framebuffer, rgba, width, height,
+                                  rects, rect_count);
+}
+
 int kittyts_read_input(kittyts_session *session)
 {
     if (session == NULL || !session->keyboard_active) {

@@ -62,6 +62,21 @@ bool kittyts_check_resize(kittyts_session *session, int *width, int *height);
 bool kittyts_present(kittyts_session *session, const uint8_t *rgba,
                      int width, int height);
 
+/*
+ * Present only the parts of a frame that changed, patching the image
+ * already on screen rather than retransmitting it.  Right for an
+ * interactive application, where moving the pointer changes a few hundred
+ * pixels and a full frame costs the whole image again.
+ *
+ * See kittyfb_present_damage() for the details.  Rectangles are in
+ * framebuffer pixels with x1/y1 exclusive, and it falls back to a full
+ * frame by itself whenever patching cannot help - so a caller can use it
+ * unconditionally and never has to decide which is cheaper.
+ */
+bool kittyts_present_damage(kittyts_session *session, const uint8_t *rgba,
+                            int width, int height,
+                            const kittyfb_rect *rects, size_t rect_count);
+
 int kittyts_read_input(kittyts_session *session);
 bool kittyts_next_event(kittyts_session *session, kittyin_event *event);
 bool kittyts_next_key_event(kittyts_session *session, kittykb_event *event);
