@@ -44,6 +44,13 @@ int main(void)
     assert(kittyts_start(&session, slave, slave, &options) == 0);
     assert(kittyts_width(&session) == 320);
     assert(kittyts_height(&session) == 240);
+    /* 320x240 inside an 80x24 terminal of 8x20 cells, so the frame is
+     * centered and a pointer report needs the offset subtracted to land
+     * in it.  Vertically that is not half the slack: one row is reserved
+     * for the prompt, leaving 23 rows for 12 rows of frame. */
+    assert(kittyts_origin_x(&session) == 160);
+    assert(kittyts_origin_y(&session) == 100);
+    assert(kittyts_origin_x(NULL) == 0 && kittyts_origin_y(NULL) == 0);
     assert(kittyts_start(&session, slave, slave, &options) == -1 &&
            errno == EBUSY);
 

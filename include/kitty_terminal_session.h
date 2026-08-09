@@ -58,6 +58,16 @@ int kittyts_width(const kittyts_session *session);
 int kittyts_height(const kittyts_session *session);
 int kittyts_cell_width(const kittyts_session *session);
 int kittyts_cell_height(const kittyts_session *session);
+
+/*
+ * Where the frame's top-left corner sits inside the terminal, in pixels;
+ * see kittyfb_origin_x().  A pixel mouse report is relative to the
+ * terminal, so subtracting these turns one into a coordinate in the frame
+ * the application drew - which is the whole reason this session enables
+ * pixel mouse coordinates by default.
+ */
+int kittyts_origin_x(const kittyts_session *session);
+int kittyts_origin_y(const kittyts_session *session);
 bool kittyts_check_resize(kittyts_session *session, int *width, int *height);
 bool kittyts_present(kittyts_session *session, const uint8_t *rgba,
                      int width, int height);

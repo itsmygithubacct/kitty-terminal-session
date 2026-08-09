@@ -161,6 +161,18 @@ int kittyts_cell_height(const kittyts_session *session)
            kittyfb_cell_height(&session->framebuffer) : 0;
 }
 
+int kittyts_origin_x(const kittyts_session *session)
+{
+    return session != NULL && session->framebuffer_active ?
+           kittyfb_origin_x(&session->framebuffer) : 0;
+}
+
+int kittyts_origin_y(const kittyts_session *session)
+{
+    return session != NULL && session->framebuffer_active ?
+           kittyfb_origin_y(&session->framebuffer) : 0;
+}
+
 bool kittyts_check_resize(kittyts_session *session, int *width, int *height)
 {
     return session != NULL && session->framebuffer_active &&
