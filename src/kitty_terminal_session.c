@@ -11,7 +11,10 @@ void kittyts_options_init(kittyts_options *options)
     kittykb_terminal_options_init(&options->keyboard);
     options->keyboard.flags = KITTYKB_FLAGS_KEY_STATE;
     options->keyboard.make_raw = false;
-    options->keyboard.make_nonblocking = false;
+    /* The framebuffer owns raw mode on input and O_NONBLOCK on output.
+     * The input layer must still own O_NONBLOCK on input: input_fd and
+     * output_fd are allowed to name independently opened descriptors. */
+    options->keyboard.make_nonblocking = true;
     options->mouse_tracking = KITTYIN_MOUSE_TRACKING_OFF;
     options->pixel_mouse = true;
     options->focus_events = false;
@@ -49,12 +52,21 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
     session->cleanup_claimed = 0;
     session->output_fd = output_fd;
     if (kittyfb_start(&session->framebuffer, input_fd, output_fd,
-                      &selected->framebuffer) != 0)
+                      &selected->framebuffer) != 0) {
+        int error = errno;
+        session->output_fd = -1;
+        errno = error;
         return -1;
+    }
     session->framebuffer_active = true;
     session->framebuffer_suspended = false;
     kittyin_terminal_options_init(&input_options);
     input_options.keyboard = selected->keyboard;
+    /* A single descriptor is already nonblocking through the framebuffer.
+     * Avoid duplicate fcntl bookkeeping on the overwhelmingly common path;
+     * distinct descriptors retain independent input ownership. */
+    if (input_fd == output_fd)
+        input_options.keyboard.make_nonblocking = false;
     input_options.mouse_tracking = selected->mouse_tracking;
     input_options.pixel_mouse = selected->pixel_mouse;
     input_options.focus_events = selected->focus_events;
@@ -75,10 +87,8 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
 
 static bool claim_shutdown(kittyts_session *session)
 {
-    if (session == NULL ||
-        (!session->framebuffer_active && !session->keyboard_active))
-        return false;
-    return !__sync_lock_test_and_set(&session->shutdown_claimed, 1);
+    return session != NULL &&
+           !__sync_lock_test_and_set(&session->shutdown_claimed, 1);
 }
 
 void kittyts_stop(kittyts_session *session)
@@ -86,10 +96,9 @@ void kittyts_stop(kittyts_session *session)
     if (session == NULL ||
         (!session->framebuffer_active && !session->framebuffer_suspended &&
          !session->keyboard_active)) return;
-    /* Claim terminal restoration so a later signal-handler invocation is a
-     * no-op, but do not let an earlier emergency claim suppress resource
-     * cleanup.  cleanup_claimed retains idempotence for ordinary callers. */
-    (void)claim_shutdown(session);
+    /* Each dependency owns its own normal/emergency restore claim.  The
+     * aggregate's cleanup claim only prevents duplicate ordinary teardown;
+     * it must not suppress a signal-time dependency restore mid-stop. */
     if (__sync_lock_test_and_set(&session->cleanup_claimed, 1)) return;
     if (session->keyboard_active) {
         (void)kittyin_terminal_stop(&session->input);
@@ -111,7 +120,6 @@ void kittyts_suspend(kittyts_session *session)
         (!session->framebuffer_active && !session->keyboard_active)) {
         return;
     }
-    (void)claim_shutdown(session);
     if (session->keyboard_active) {
         (void)kittyin_terminal_stop(&session->input);
         session->keyboard_active = false;
@@ -127,14 +135,19 @@ void kittyts_suspend(kittyts_session *session)
 void kittyts_emergency_restore(kittyts_session *session)
 {
     static const char string_terminator[] = "\x1b\\";
-    if (!claim_shutdown(session)) return;
-    if (session->keyboard_active && session->output_fd >= 0) {
+
+    if (session == NULL) return;
+    /* Close a possibly interrupted graphics APC before mode controls.  The
+     * aggregate claim makes this prefix one-shot, while dependency calls are
+     * always attempted: their own guards know whether each layer still needs
+     * restoration, including while wrapper booleans lag during startup. */
+    if (claim_shutdown(session) && session->input.active &&
+        session->output_fd >= 0) {
         (void)write(session->output_fd, string_terminator,
                     sizeof string_terminator - 1u);
-        kittyin_terminal_emergency_restore(&session->input);
     }
-    if (session->framebuffer_active)
-        kittyfb_emergency_restore(&session->framebuffer);
+    kittyin_terminal_emergency_restore(&session->input);
+    kittyfb_emergency_restore(&session->framebuffer);
 }
 
 int kittyts_width(const kittyts_session *session)
@@ -193,6 +206,36 @@ bool kittyts_present_damage(kittyts_session *session, const uint8_t *rgba,
     return session != NULL && session->framebuffer_active &&
            kittyfb_present_damage(&session->framebuffer, rgba, width, height,
                                   rects, rect_count);
+}
+
+kittyfb_transport kittyts_active_transport(const kittyts_session *session)
+{
+    return kittyfb_active_transport(
+        session != NULL && session->framebuffer_active
+            ? &session->framebuffer
+            : NULL);
+}
+
+bool kittyts_failed(const kittyts_session *session)
+{
+    return session != NULL &&
+           kittyfb_failed(&session->framebuffer);
+}
+
+void kittyts_get_stats(kittyts_session *session, kittyfb_stats *out)
+{
+    if (session != NULL && out != NULL)
+        kittyfb_get_stats(&session->framebuffer, out);
+}
+
+void kittyts_notify_resize(void)
+{
+    kittyfb_notify_resize();
+}
+
+int kittyts_reap_orphans(void)
+{
+    return kittyfb_reap_orphans();
 }
 
 int kittyts_read_input(kittyts_session *session)
