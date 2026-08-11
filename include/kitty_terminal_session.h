@@ -117,6 +117,17 @@ bool kittyts_present_scroll(kittyts_session *session, const uint8_t *rgba,
                             const kittyfb_rect *extra_rects,
                             size_t extra_rect_count);
 
+/* Shift only scroll_region, leaving fixed chrome outside it untouched.  See
+ * kittyfb_present_scroll_region() for clipping, capability negotiation, and
+ * automatic full-frame fallback semantics. */
+bool kittyts_present_scroll_region(kittyts_session *session,
+                                   const uint8_t *rgba,
+                                   int width, int height,
+                                   const kittyfb_rect *scroll_region,
+                                   int dx, int dy,
+                                   const kittyfb_rect *extra_rects,
+                                   size_t extra_rect_count);
+
 int kittyts_read_input(kittyts_session *session);
 bool kittyts_next_event(kittyts_session *session, kittyin_event *event);
 /* Compatibility helper: discards queued non-key events; do not mix APIs. */

@@ -78,6 +78,10 @@ to a full presentation when patching would be unsafe or more expensive.
 only exposed strips plus caller-supplied chrome damage. Kilix Kitty composes
 the overlap on its GPU when available and uses its CPU upload path otherwise;
 standard terminals automatically receive a full frame.
+`kittyts_present_scroll_region()` is the preferred document/editor form: it
+shifts only a clipped content viewport, leaving toolbars and sidebars in place
+without retransmitting them. Framebuffer placements stay below terminal
+foreground UI so Kilix's software mouse cursor remains visible.
 `kittyts_failed()`, `kittyts_get_stats()`, and
 `kittyts_active_transport()` expose presenter health and transport evidence;
 resize notification and shared-memory orphan reaping are available through

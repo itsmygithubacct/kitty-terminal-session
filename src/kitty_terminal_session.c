@@ -218,6 +218,20 @@ bool kittyts_present_scroll(kittyts_session *session, const uint8_t *rgba,
                                   dx, dy, extra_rects, extra_rect_count);
 }
 
+bool kittyts_present_scroll_region(kittyts_session *session,
+                                   const uint8_t *rgba,
+                                   int width, int height,
+                                   const kittyfb_rect *scroll_region,
+                                   int dx, int dy,
+                                   const kittyfb_rect *extra_rects,
+                                   size_t extra_rect_count)
+{
+    return session != NULL && session->framebuffer_active &&
+           kittyfb_present_scroll_region(
+               &session->framebuffer, rgba, width, height, scroll_region,
+               dx, dy, extra_rects, extra_rect_count);
+}
+
 kittyfb_transport kittyts_active_transport(const kittyts_session *session)
 {
     return kittyfb_active_transport(

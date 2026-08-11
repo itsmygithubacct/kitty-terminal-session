@@ -3,6 +3,8 @@
 ## 0.4.0
 
 - Forward framebuffer 0.5 retained-scroll composition and its statistics.
+- Forward viewport-scoped retained scrolling so fixed chrome stays in place,
+  and pin the framebuffer pointer-layering and continuation-protocol repair.
 - Preserve full-frame behavior on standard terminals through the framebuffer's
   capability and cost fallbacks.
 - Pin the framebuffer provider revision that implements the 0.5 protocol.

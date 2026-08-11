@@ -210,6 +210,8 @@ static bool test_defaults_and_inactive_api(void)
     CHECK(!kittyts_present_damage(&session, pixel, 1, 1, &rect, 1u));
     CHECK(!kittyts_present_scroll(
         &session, pixel, 1, 1, 0, -1, &rect, 1u));
+    CHECK(!kittyts_present_scroll_region(
+        &session, pixel, 1, 1, &rect, 0, -1, NULL, 0u));
     CHECK(kittyts_active_transport(NULL) == KITTYFB_TRANSPORT_INLINE);
     CHECK(!kittyts_failed(NULL));
     errno = 0;
@@ -502,6 +504,7 @@ static bool test_framebuffer_forwarding(void)
     static uint8_t frame[16u * 8u * 4u];
     const kittyfb_rect damage = {0, 0, 4, 4};
     const kittyfb_rect toolbar = {0, 0, 16, 1};
+    const kittyfb_rect viewport = {0, 1, 16, 8};
     test_pty pty;
     kittyts_session session;
     kittyts_options options;
@@ -534,11 +537,12 @@ static bool test_framebuffer_forwarding(void)
     drain_descriptor(pty.master);
     CHECK(setenv("KITTY_KILIX_RENDERING", "1", 1) == 0);
     frame[sizeof frame - 4u] ^= 255u;
-    CHECK(kittyts_present_scroll(
-        &session, frame, 16, 8, 0, -1, &toolbar, 1u));
+    CHECK(kittyts_present_scroll_region(
+        &session, frame, 16, 8, &viewport, 0, -1, NULL, 0u));
     used = read_available(pty.master, wire, sizeof wire);
     CHECK(contains_string(wire, used, "a=c,i=1,r=1,c=1"));
-    CHECK(contains_string(wire, used, "X=0,Y=1,w=16,h=7"));
+    CHECK(contains_string(wire, used, "x=0,y=1,X=0,Y=2,w=16,h=6"));
+    CHECK(!contains_string(wire, used, "x=0,y=0,s=16,v=1"));
     CHECK(contains_string(wire, used, "C=1,N=2,q=2"));
     kittyts_get_stats(&session, &stats);
     CHECK(stats.scroll_presents == 1u);
@@ -552,6 +556,8 @@ static bool test_framebuffer_forwarding(void)
     CHECK(!kittyts_present_damage(&session, frame, 16, 8, &damage, 1u));
     CHECK(!kittyts_present_scroll(
         &session, frame, 16, 8, 0, -1, &toolbar, 1u));
+    CHECK(!kittyts_present_scroll_region(
+        &session, frame, 16, 8, &viewport, 0, -1, NULL, 0u));
     CHECK(close_test_pty(&pty));
     return true;
 }
