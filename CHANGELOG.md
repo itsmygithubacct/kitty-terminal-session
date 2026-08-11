@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0
+
+- Forward framebuffer 0.5 retained-scroll composition and its statistics.
+- Preserve full-frame behavior on standard terminals through the framebuffer's
+  capability and cost fallbacks.
+- Pin the framebuffer provider revision that implements the 0.5 protocol.
+
 ## 0.3.0
 
 - Keep distinct input descriptors nonblocking while avoiding duplicate flag

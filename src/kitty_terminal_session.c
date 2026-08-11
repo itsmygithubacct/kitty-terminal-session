@@ -208,6 +208,16 @@ bool kittyts_present_damage(kittyts_session *session, const uint8_t *rgba,
                                   rects, rect_count);
 }
 
+bool kittyts_present_scroll(kittyts_session *session, const uint8_t *rgba,
+                            int width, int height, int dx, int dy,
+                            const kittyfb_rect *extra_rects,
+                            size_t extra_rect_count)
+{
+    return session != NULL && session->framebuffer_active &&
+           kittyfb_present_scroll(&session->framebuffer, rgba, width, height,
+                                  dx, dy, extra_rects, extra_rect_count);
+}
+
 kittyfb_transport kittyts_active_transport(const kittyts_session *session)
 {
     return kittyfb_active_transport(

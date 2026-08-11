@@ -13,11 +13,11 @@ extern "C" {
 #endif
 
 #define KITTYTS_VERSION_MAJOR 0
-#define KITTYTS_VERSION_MINOR 3
+#define KITTYTS_VERSION_MINOR 4
 #define KITTYTS_VERSION_PATCH 0
 
-#if KITTYFB_VERSION_MAJOR == 0 && KITTYFB_VERSION_MINOR < 4
-#error "kitty-terminal-session 0.3 requires kitty-framebuffer 0.4 or newer"
+#if KITTYFB_VERSION_MAJOR == 0 && KITTYFB_VERSION_MINOR < 5
+#error "kitty-terminal-session 0.4 requires kitty-framebuffer 0.5 or newer"
 #endif
 #if KITTYIN_VERSION_MAJOR == 0 &&                                      \
     (KITTYIN_VERSION_MINOR < 2 ||                                     \
@@ -105,6 +105,17 @@ int kittyts_reap_orphans(void);
 bool kittyts_present_damage(kittyts_session *session, const uint8_t *rgba,
                             int width, int height,
                             const kittyfb_rect *rects, size_t rect_count);
+
+/*
+ * Shift the retained frame and patch its exposed strips.  Positive dx/dy
+ * moves pixels right/down; extra rectangles cover changes not explained by
+ * that motion.  See kittyfb_present_scroll() for capability negotiation and
+ * the automatic full-frame fallback used by standard terminals.
+ */
+bool kittyts_present_scroll(kittyts_session *session, const uint8_t *rgba,
+                            int width, int height, int dx, int dy,
+                            const kittyfb_rect *extra_rects,
+                            size_t extra_rect_count);
 
 int kittyts_read_input(kittyts_session *session);
 bool kittyts_next_event(kittyts_session *session, kittyin_event *event);

@@ -7,6 +7,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
@@ -183,7 +184,7 @@ static bool test_defaults_and_inactive_api(void)
     kittyts_options_init(&options);
     kittyts_session_init(&session);
     CHECK(KITTYTS_VERSION_MAJOR == 0);
-    CHECK(KITTYTS_VERSION_MINOR == 3);
+    CHECK(KITTYTS_VERSION_MINOR == 4);
     CHECK(options.framebuffer.manage_raw_mode);
     CHECK(!options.keyboard.make_raw);
     CHECK(options.keyboard.make_nonblocking);
@@ -207,6 +208,8 @@ static bool test_defaults_and_inactive_api(void)
     CHECK(!kittyts_check_resize(&session, NULL, NULL));
     CHECK(!kittyts_present(&session, pixel, 1, 1));
     CHECK(!kittyts_present_damage(&session, pixel, 1, 1, &rect, 1u));
+    CHECK(!kittyts_present_scroll(
+        &session, pixel, 1, 1, 0, -1, &rect, 1u));
     CHECK(kittyts_active_transport(NULL) == KITTYFB_TRANSPORT_INLINE);
     CHECK(!kittyts_failed(NULL));
     errno = 0;
@@ -498,10 +501,13 @@ static bool test_framebuffer_forwarding(void)
 {
     static uint8_t frame[16u * 8u * 4u];
     const kittyfb_rect damage = {0, 0, 4, 4};
+    const kittyfb_rect toolbar = {0, 0, 16, 1};
     test_pty pty;
     kittyts_session session;
     kittyts_options options;
     kittyfb_stats stats = {0};
+    unsigned char wire[8192];
+    size_t used;
     size_t index;
 
     for (index = 0u; index < sizeof frame; index += 4u) {
@@ -524,11 +530,28 @@ static bool test_framebuffer_forwarding(void)
     CHECK(stats.frames_encoded == 1u);
     CHECK(stats.damage_presents == 1u);
     CHECK(stats.damage_fallbacks == 0u);
+
+    drain_descriptor(pty.master);
+    CHECK(setenv("KITTY_KILIX_RENDERING", "1", 1) == 0);
+    frame[sizeof frame - 4u] ^= 255u;
+    CHECK(kittyts_present_scroll(
+        &session, frame, 16, 8, 0, -1, &toolbar, 1u));
+    used = read_available(pty.master, wire, sizeof wire);
+    CHECK(contains_string(wire, used, "a=c,i=1,r=1,c=1"));
+    CHECK(contains_string(wire, used, "X=0,Y=1,w=16,h=7"));
+    CHECK(contains_string(wire, used, "C=1,N=2,q=2"));
+    kittyts_get_stats(&session, &stats);
+    CHECK(stats.scroll_presents == 1u);
+    CHECK(stats.scroll_fallbacks == 0u);
+    CHECK(unsetenv("KITTY_KILIX_RENDERING") == 0);
+
     CHECK(!kittyts_failed(&session));
     kittyts_notify_resize();
     CHECK(!kittyts_check_resize(&session, NULL, NULL));
     kittyts_stop(&session);
     CHECK(!kittyts_present_damage(&session, frame, 16, 8, &damage, 1u));
+    CHECK(!kittyts_present_scroll(
+        &session, frame, 16, 8, 0, -1, &toolbar, 1u));
     CHECK(close_test_pty(&pty));
     return true;
 }

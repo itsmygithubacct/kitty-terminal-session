@@ -6,9 +6,9 @@ and [`kitty-input`](https://github.com/itsmygithubacct/kitty-input). Its static
 library includes both dependencies and provides one start, suspend, emergency,
 and stop boundary plus thin presentation and input forwarding calls.
 
-Version 0.3 requires `kitty-framebuffer` 0.4 or newer and `kitty-input` 0.2.1
-or newer. Dependent objects must be rebuilt because the framebuffer 0.4 public
-session and statistics layouts changed.
+Version 0.4 requires `kitty-framebuffer` 0.5 or newer and `kitty-input` 0.2.1
+or newer. Dependent objects must be rebuilt because the framebuffer 0.5 public
+statistics layout changed.
 
 ## Build, test, and install
 
@@ -74,6 +74,10 @@ reclaimed.
 `kittyts_present()` queues a full RGBA frame. `kittyts_present_damage()` edits
 small changed rectangles in the displayed frame and automatically falls back
 to a full presentation when patching would be unsafe or more expensive.
+`kittyts_present_scroll()` shifts retained pixels in the terminal and sends
+only exposed strips plus caller-supplied chrome damage. Kilix Kitty composes
+the overlap on its GPU when available and uses its CPU upload path otherwise;
+standard terminals automatically receive a full frame.
 `kittyts_failed()`, `kittyts_get_stats()`, and
 `kittyts_active_transport()` expose presenter health and transport evidence;
 resize notification and shared-memory orphan reaping are available through
