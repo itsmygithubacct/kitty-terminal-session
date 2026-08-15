@@ -16,13 +16,28 @@ extern "C" {
 #define KITTYTS_VERSION_MINOR 4
 #define KITTYTS_VERSION_PATCH 0
 
-#if KITTYFB_VERSION_MAJOR == 0 && KITTYFB_VERSION_MINOR < 5
-#error "kitty-terminal-session 0.4 requires kitty-framebuffer 0.5 or newer"
+/* Dependency floors are paired with vetted ceilings: a new dependency
+ * major is exactly the release most likely to change the layouts these
+ * guards police, so it must fail the build until the ceiling is raised
+ * deliberately rather than pass a MAJOR == 0 check silently. */
+#define KITTYTS_DEP_VERSION(major, minor, patch) \
+    ((major) * 10000L + (minor) * 100L + (patch))
+
+#if KITTYTS_DEP_VERSION(KITTYFB_VERSION_MAJOR, KITTYFB_VERSION_MINOR,  \
+                        KITTYFB_VERSION_PATCH) <                       \
+    KITTYTS_DEP_VERSION(0, 5, 0)
+#error "kitty-terminal-session requires kitty-framebuffer 0.5 or newer"
 #endif
-#if KITTYIN_VERSION_MAJOR == 0 &&                                      \
-    (KITTYIN_VERSION_MINOR < 2 ||                                     \
-     (KITTYIN_VERSION_MINOR == 2 && KITTYIN_VERSION_PATCH < 1))
-#error "kitty-terminal-session 0.3 requires kitty-input 0.2.1 or newer"
+#if KITTYFB_VERSION_MAJOR > 0
+#error "kitty-framebuffer 1.x is unvetted; raise this ceiling deliberately"
+#endif
+#if KITTYTS_DEP_VERSION(KITTYIN_VERSION_MAJOR, KITTYIN_VERSION_MINOR,  \
+                        KITTYIN_VERSION_PATCH) <                       \
+    KITTYTS_DEP_VERSION(0, 2, 1)
+#error "kitty-terminal-session requires kitty-input 0.2.1 or newer"
+#endif
+#if KITTYIN_VERSION_MAJOR > 0
+#error "kitty-input 1.x is unvetted; raise this ceiling deliberately"
 #endif
 
 typedef struct kittyts_options {
