@@ -1,8 +1,55 @@
 #include "kitty_terminal_session.h"
 
 #include <errno.h>
+#include <stddef.h>
 #include <string.h>
 #include <unistd.h>
+
+/*
+ * kittyts_options flattens the input option fields so a caller configures
+ * one struct, which means it hand-mirrors kittyin_terminal_options.  These
+ * checks fail this build the moment the input layer grows, reorders, or
+ * retypes an option, instead of silently leaving a new option
+ * unforwardable behind an unchanged aggregate.
+ */
+typedef struct kittyts_input_options_mirror {
+    kittykb_terminal_options keyboard;
+    kittyin_mouse_tracking mouse_tracking;
+    bool pixel_mouse;
+    bool focus_events;
+    bool bracketed_paste;
+} kittyts_input_options_mirror;
+
+_Static_assert(sizeof(kittyts_input_options_mirror) ==
+                   sizeof(kittyin_terminal_options),
+               "kittyin_terminal_options changed; update kittyts_options, "
+               "kittyts_start's copy, and this mirror");
+_Static_assert(offsetof(kittyts_input_options_mirror, keyboard) ==
+                   offsetof(kittyin_terminal_options, keyboard) &&
+               offsetof(kittyts_input_options_mirror, mouse_tracking) ==
+                   offsetof(kittyin_terminal_options, mouse_tracking) &&
+               offsetof(kittyts_input_options_mirror, pixel_mouse) ==
+                   offsetof(kittyin_terminal_options, pixel_mouse) &&
+               offsetof(kittyts_input_options_mirror, focus_events) ==
+                   offsetof(kittyin_terminal_options, focus_events) &&
+               offsetof(kittyts_input_options_mirror, bracketed_paste) ==
+                   offsetof(kittyin_terminal_options, bracketed_paste),
+               "kittyin_terminal_options reordered; update kittyts_options, "
+               "kittyts_start's copy, and this mirror");
+_Static_assert(offsetof(kittyts_options, mouse_tracking) -
+                   offsetof(kittyts_options, keyboard) ==
+                   offsetof(kittyin_terminal_options, mouse_tracking) &&
+               offsetof(kittyts_options, pixel_mouse) -
+                   offsetof(kittyts_options, keyboard) ==
+                   offsetof(kittyin_terminal_options, pixel_mouse) &&
+               offsetof(kittyts_options, focus_events) -
+                   offsetof(kittyts_options, keyboard) ==
+                   offsetof(kittyin_terminal_options, focus_events) &&
+               offsetof(kittyts_options, bracketed_paste) -
+                   offsetof(kittyts_options, keyboard) ==
+                   offsetof(kittyin_terminal_options, bracketed_paste),
+               "kittyts_options input tail drifted from "
+               "kittyin_terminal_options");
 
 void kittyts_options_init(kittyts_options *options)
 {
