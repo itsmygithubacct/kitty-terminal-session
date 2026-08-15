@@ -547,6 +547,36 @@ static bool test_framebuffer_forwarding(void)
     kittyts_get_stats(&session, &stats);
     CHECK(stats.scroll_presents == 1u);
     CHECK(stats.scroll_fallbacks == 0u);
+
+    /* Full-frame scroll forwarding on an active session: a one-row upward
+     * shift composes rows 1..8 onto rows 0..7 and patches the exposed
+     * bottom row plus the caller's fixed toolbar rectangle. */
+    drain_descriptor(pty.master);
+    frame[4] ^= 255u;
+    CHECK(kittyts_present_scroll(&session, frame, 16, 8, 0, -1,
+                                 &toolbar, 1u));
+    used = read_available(pty.master, wire, sizeof wire);
+    CHECK(contains_string(wire, used,
+                          "a=c,i=1,r=1,c=1,x=0,y=0,X=0,Y=1,w=16,h=7"));
+    CHECK(contains_string(wire, used, "x=0,y=7,s=16,v=1"));
+    CHECK(contains_string(wire, used, "x=0,y=0,s=16,v=1"));
+    kittyts_get_stats(&session, &stats);
+    CHECK(stats.scroll_presents == 2u);
+    CHECK(stats.scroll_fallbacks == 0u);
+
+    /* An asymmetric horizontal shift pins the dx/dy argument order: a
+     * transposition would move the shift into y and change every asserted
+     * geometry byte below. */
+    drain_descriptor(pty.master);
+    frame[12] ^= 255u;
+    CHECK(kittyts_present_scroll(&session, frame, 16, 8, 2, 0, NULL, 0u));
+    used = read_available(pty.master, wire, sizeof wire);
+    CHECK(contains_string(wire, used,
+                          "a=c,i=1,r=1,c=1,x=2,y=0,X=0,Y=0,w=14,h=8"));
+    CHECK(contains_string(wire, used, "x=0,y=0,s=2,v=8"));
+    kittyts_get_stats(&session, &stats);
+    CHECK(stats.scroll_presents == 3u);
+    CHECK(stats.scroll_fallbacks == 0u);
     CHECK(unsetenv("KITTY_KILIX_RENDERING") == 0);
 
     CHECK(!kittyts_failed(&session));
