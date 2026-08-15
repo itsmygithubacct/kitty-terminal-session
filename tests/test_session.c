@@ -433,6 +433,23 @@ static bool test_suspend_failed_resume_and_reuse(void)
     CHECK(errno == EINVAL);
     CHECK(session.framebuffer_suspended && session.output_fd == -1);
     options.framebuffer.max_width = 16;
+
+    /* An input-start failure after the framebuffer already resumed must
+     * also roll back to a suspension: the retained encode buffer survives
+     * for the retry and the terminal is restored, instead of the failure
+     * silently becoming a final stop that frees retained storage. */
+    options.mouse_tracking = (kittyin_mouse_tracking)99;
+    errno = 0;
+    CHECK(kittyts_start(&session, pty.slave, pty.slave, &options) == -1);
+    CHECK(errno == EINVAL);
+    CHECK(!session.framebuffer_active && session.framebuffer_suspended &&
+          !session.keyboard_active && session.output_fd == -1);
+    CHECK(session.framebuffer.encode_buffer == retained);
+    CHECK(fcntl(pty.slave, F_GETFL) == pty.slave_flags);
+    CHECK(tcgetattr(pty.slave, &current) == 0);
+    CHECK(same_termios(&pty.termios, &current));
+    options.mouse_tracking = KITTYIN_MOUSE_TRACKING_OFF;
+
     CHECK(kittyts_start(&session, pty.slave, pty.slave, &options) == 0);
     CHECK(session.framebuffer.encode_buffer == retained);
     CHECK(session.framebuffer_active && !session.framebuffer_suspended &&

@@ -36,6 +36,7 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
     kittyts_options defaults;
     kittyin_terminal_options input_options;
     const kittyts_options *selected = options;
+    bool was_suspended;
     if (session == NULL || input_fd < 0 || output_fd < 0) {
         errno = EINVAL;
         return -1;
@@ -48,6 +49,7 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
         kittyts_options_init(&defaults);
         selected = &defaults;
     }
+    was_suspended = session->framebuffer_suspended;
     session->shutdown_claimed = 0;
     session->cleanup_claimed = 0;
     session->output_fd = output_fd;
@@ -74,9 +76,17 @@ int kittyts_start(kittyts_session *session, int input_fd, int output_fd,
     if (kittyin_terminal_start(&session->input, input_fd, output_fd,
                                &input_options) != 0) {
         int error = errno;
-        kittyfb_stop(&session->framebuffer);
+        /* A failed resume must roll back to a suspension, not demote the
+         * session to a hidden final stop: suspending the just-restarted
+         * framebuffer restores the terminal while keeping the retained
+         * high-water buffers the suspend contract promises to a caller
+         * that retries.  A fresh start has nothing to retain. */
+        if (was_suspended)
+            kittyfb_suspend(&session->framebuffer);
+        else
+            kittyfb_stop(&session->framebuffer);
         session->framebuffer_active = false;
-        session->framebuffer_suspended = false;
+        session->framebuffer_suspended = was_suspended;
         session->output_fd = -1;
         errno = error;
         return -1;
