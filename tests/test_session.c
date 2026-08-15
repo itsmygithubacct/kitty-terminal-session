@@ -220,6 +220,12 @@ static bool test_defaults_and_inactive_api(void)
     CHECK(!kittyts_next_key_event(&session, &key_event));
     CHECK(!kittyts_key_down(&session, (uint32_t)'a'));
     CHECK(!kittyts_has_release_events(&session));
+    CHECK(kittyts_get_input_stats(&session) == NULL);
+    CHECK(kittyts_get_input_stats(NULL) == NULL);
+    CHECK(kittyts_held_count(&session) == 0u);
+    CHECK(kittyts_held_count(NULL) == 0u);
+    kittyts_release_all_keys(&session);
+    kittyts_release_all_keys(NULL);
     kittyts_suspend(NULL);
     kittyts_stop(NULL);
     kittyts_emergency_restore(NULL);
@@ -235,6 +241,7 @@ static bool test_lifecycle_and_ordered_input(void)
     kittyts_options options;
     kittykb_event key_event;
     kittyin_event event;
+    const kittyin_stats *input_stats;
     struct termios current;
     unsigned char controls[4096];
     size_t used;
@@ -307,7 +314,20 @@ static bool test_lifecycle_and_ordered_input(void)
     CHECK(key_event.key == (uint32_t)'x');
     CHECK(!kittyts_next_key_event(&session, &key_event));
 
+    input_stats = kittyts_get_input_stats(&session);
+    CHECK(input_stats != NULL);
+    CHECK(input_stats->bytes_fed > 0u);
+    CHECK(input_stats->paste_chunks == 1u);
+    CHECK(input_stats->dropped_events == 0u);
+    CHECK(input_stats->malformed_sequences == 0u);
+    /* A blind zero-timeout start reports no release capability, so held
+     * state stays empty and releasing it is a safe no-op. */
+    CHECK(kittyts_held_count(&session) == 0u);
+    kittyts_release_all_keys(&session);
+    CHECK(!kittyts_key_down(&session, (uint32_t)'x'));
+
     kittyts_stop(&session);
+    CHECK(kittyts_get_input_stats(&session) == NULL);
     kittyts_stop(&session);
     CHECK(!session.framebuffer_active && !session.framebuffer_suspended &&
           !session.keyboard_active && session.output_fd == -1);

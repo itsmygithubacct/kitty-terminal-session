@@ -150,6 +150,23 @@ bool kittyts_next_key_event(kittyts_session *session, kittykb_event *event);
 bool kittyts_key_down(const kittyts_session *session, uint32_t key);
 bool kittyts_has_release_events(const kittyts_session *session);
 
+/*
+ * Input decode health: dropped events, malformed sequences, and paste
+ * chunks are the first things to check when input misbehaves.  Returns
+ * NULL while the input layer is inactive; the pointer is borrowed and
+ * valid until the next lifecycle call.
+ */
+const kittyin_stats *kittyts_get_input_stats(const kittyts_session *session);
+
+/*
+ * Drop all held-key state, as on focus loss.  A focus-out event only
+ * reports the change; it never releases held keys by itself, so a game
+ * combining kittyts_key_down() with focus events calls this to unstick
+ * keys whose release went to another window.
+ */
+void kittyts_release_all_keys(kittyts_session *session);
+size_t kittyts_held_count(const kittyts_session *session);
+
 #ifdef __cplusplus
 }
 #endif

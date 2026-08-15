@@ -92,7 +92,11 @@ wire behavior. Opt in on `kittyts_options`, call `kittyts_read_input()`, and
 consume the ordered queue with `kittyts_next_event()`. The compatibility helper
 `kittyts_next_key_event()` skips and permanently discards non-key events, so do
 not mix the two queue APIs. Held-key state is available only after the terminal
-confirms release-event capability.
+confirms release-event capability. `kittyts_get_input_stats()` exposes input
+decode health the same way `kittyts_get_stats()` exposes presenter health, and
+`kittyts_held_count()` with `kittyts_release_all_keys()` manage held-key state
+directly - a focus-out event only reports the change and never releases held
+keys by itself.
 
 ## Scope
 

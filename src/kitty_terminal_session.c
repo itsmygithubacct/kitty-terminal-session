@@ -313,3 +313,21 @@ bool kittyts_has_release_events(const kittyts_session *session)
     return session != NULL && session->keyboard_active &&
            kittyin_input_has_release_events(&session->input.input);
 }
+
+const kittyin_stats *kittyts_get_input_stats(const kittyts_session *session)
+{
+    return session != NULL && session->keyboard_active ?
+           kittyin_input_get_stats(&session->input.input) : NULL;
+}
+
+void kittyts_release_all_keys(kittyts_session *session)
+{
+    if (session != NULL && session->keyboard_active)
+        kittyin_input_release_all(&session->input.input);
+}
+
+size_t kittyts_held_count(const kittyts_session *session)
+{
+    return session != NULL && session->keyboard_active ?
+           kittyin_input_held_count(&session->input.input) : 0u;
+}
