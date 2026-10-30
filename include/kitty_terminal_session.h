@@ -159,10 +159,11 @@ bool kittyts_has_release_events(const kittyts_session *session);
 const kittyin_stats *kittyts_get_input_stats(const kittyts_session *session);
 
 /*
- * Drop all held-key state, as on focus loss.  A focus-out event only
- * reports the change; it never releases held keys by itself, so a game
- * combining kittyts_key_down() with focus events calls this to unstick
- * keys whose release went to another window.
+ * Explicitly drop keyboard held state for an application lifecycle reset.
+ * With the focus-order input fix, focus-out already clears this state at
+ * decode time. Do not call this again while dequeuing that event: a later
+ * key press may already be held. Update application-owned action/UI state
+ * separately in event order; no synthetic key-release events are emitted.
  */
 void kittyts_release_all_keys(kittyts_session *session);
 size_t kittyts_held_count(const kittyts_session *session);

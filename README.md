@@ -95,8 +95,10 @@ not mix the two queue APIs. Held-key state is available only after the terminal
 confirms release-event capability. `kittyts_get_input_stats()` exposes input
 decode health the same way `kittyts_get_stats()` exposes presenter health, and
 `kittyts_held_count()` with `kittyts_release_all_keys()` manage held-key state
-directly - a focus-out event only reports the change and never releases held
-keys by itself.
+directly. Focus-out clears parser held state when it is decoded, including
+when the focus event itself is dropped. Do not call
+`kittyts_release_all_keys()` again while dequeuing that event: a later press
+may already be held. Update application-owned state separately, in event order.
 
 ## Scope
 
